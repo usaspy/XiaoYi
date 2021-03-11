@@ -43,8 +43,7 @@ void setup() {
   Serial.begin(9600);
   pinMode(LED_BUILTIN, OUTPUT);
   delay(3000);  //等待3秒
-  Serial.print("connecting to WIFI...");
-  Serial.println(SSID);
+  Serial.println("connecting to WIFI..." + SSID);
 
   WiFi.mode(WIFI_STA);  //设置WIFI模式为STA
   WiFi.begin(SSID, PASSWORD);
@@ -55,8 +54,7 @@ void setup() {
   }
 
   Serial.println("WiFi connected!");
-  Serial.print("Device's Local IP -> ");
-  Serial.println(WiFi.localIP());
+  Serial.println("Device's Local IP -> " + WiFi.localIP().toString());
 
   //Ping远端服务器测试
   if (Ping.ping(remoteHost.c_str())) {
@@ -69,6 +67,9 @@ void setup() {
   do {
     Serial.println("udp communication initialize...");
   } while (!communication_init());
+
+  //dht22传感器初始化
+  dht.begin();
 
 }
 
@@ -143,7 +144,20 @@ void send_data() {
   active_packet.replace("doit", "ACTIVE");
   active_packet.replace("onoff", String(onoff));
   active_packet.replace("period", String(interval));
-  active_packet.replace("dht22_data", "test");
+
+//采集DHT22传感器数据
+  float h = dht.readHumidity();  //湿度
+  float t = dht.readTemperature();  //温度 （摄氏度）
+  float f = dht.readTemperature(true);  //温度 (华氏度)
+
+  if (isnan(h) || isnan(t) || isnan(f)) {
+    Serial.println("Failed to read from DHT sensor!");
+  }else{
+    float hi = dht.computeHeatIndex(f, h); //温度（体感温度）
+    String dht22_data = "(" + String(h) + "," + String(t) + "," + String(f) + "," + String(hi) + ")";
+    active_packet.replace("dht22_data", dht22_data);
+  }
+
   active_packet.replace("mp503_data", "hhhl");
   Serial.print(active_packet);
 
@@ -172,6 +186,7 @@ void send_heart() {
 
 //接收并执行指令
 void execute_command() {
+    //接收中心下发的控制指令 <- 中心
     int packetSize = udp.parsePacket();
 
     if (packetSize) {
