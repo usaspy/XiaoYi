@@ -71,6 +71,9 @@ void setup() {
   //dht22传感器初始化
   dht.begin();
 
+  //mp503传感器初始化
+  pinMode(MP503_A_PIN,INPUT);
+  pinMode(MP503_B_PIN,INPUT);
 }
 
 void loop() {
@@ -158,7 +161,12 @@ void send_data() {
     active_packet.replace("dht22_data", dht22_data);
   }
 
-  active_packet.replace("mp503_data", "hhhl");
+//采集MP503传感器数据   00:优  01:良  10:中  11:差
+  int A = digitalRead(MP503_A_PIN);
+  int B = digitalRead(MP503_B_PIN);
+
+  active_packet.replace("mp503_data", "(" + String(A) + "," + String(B) + ")");
+
   Serial.print(active_packet);
 
   //发送ACTIVE心跳包 -> 中心
