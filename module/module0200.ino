@@ -21,7 +21,7 @@ const String PASSWORD = "12345678";
 const String remoteHost = "LULU";
 const unsigned int remoteUDPPort = 9527;
 //本地UDP监听端口
-const unsigned int localUDPPort = 11677;
+const unsigned int localUDPPort = 13130;
 
 //其他配置
 int onoff = 0;  //0:停用（默认不发送传感器数据）  1：启用
@@ -77,17 +77,17 @@ void setup() {
 
 void loop() {
   /*
-   *每300秒发送一次心跳 
+   *每300秒发送一次心跳
    *每1秒轮询一次两个传感器，如果都为1时，则发送告警事件
    */
   for (int i = 1; i <= interval; i++) {
     delay(1000);
     execute_command();  //配置指令将及时生效
-    
+
     if (onoff == 1) {
       int sr501_status = digitalRead(SR501_PIN);
       int rcwl_0516_status = digitalRead(RCWL_0516_PIN);
-      
+
       //如果两个传感器都触发，则发送入侵告警事件
       if(sr501_status && rcwl_0516_status){
         send_alarm();
