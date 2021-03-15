@@ -1,19 +1,17 @@
 /*
-  module0100 环境监测模块
-  功能：定时将传感器数据通过UDP传送给中心端，中心端下发指令给模块
-  DHT22 温湿度传感器
-  MP-503 空气质量传感器
+  module0200 入侵监测模块
+  功能：当传感器监测到入侵时，通过UDP传送给中心端，中心端下发指令给模块
+  只有当两个传感器都触发时才触发入侵事件
+  SR501 红外温度传感器
+  RCWL-0516 微波雷达
 */
-#include <DHT.h>
-#include <DHT_U.h>
 #include <ESP8266WiFi.h>
 #include <WiFiUDP.h>
 #include <ESP8266Ping.h>
-#define DHTTYPE DHT22
 
 //设备码
-String DEVICE_UUID = "66776c7a-c8f4-4143-bfac-b9813fdec4ef";
-String DEVICE_TYPE = "0100";
+String DEVICE_UUID = "003c48c0-e3f6-471a-b698-7506f68455cb";
+String DEVICE_TYPE = "0200";
 
 //WIFI配置
 const String SSID = "HUAWEI";
@@ -23,25 +21,29 @@ const String PASSWORD = "12345678";
 const String remoteHost = "LULU";
 const unsigned int remoteUDPPort = 9527;
 //本地UDP监听端口
-const unsigned int localUDPPort = 13130;
+const unsigned int localUDPPort = 11677;
 
 //其他配置
 int onoff = 0;  //0:停用（默认不发送传感器数据）  1：启用
-unsigned int interval = 300;  //udp上报时间间隔，默认300秒  0 ~ 65535
+const unsigned int interval = 300;  //心跳间隔，300秒
 
-//DHT22传感器连接nodeMCU的针脚
-const int DHT22_PIN = D2;
+//SR501针脚
+const int SR501_PIN = D0;
 
-//MP503传感器连接nodeMCU的针脚
-const int MP503_A_PIN = D0;
-const int MP503_B_PIN = D1;
+//RCWL_0516微波雷达连接nodeMCU的针脚
+const int RCWL_0516_PIN = D1;
+const int RCWL_0516_CDS_PIN = D2;
+const int CDS_ON = HIGH;
+const int CDS_OFF = LOW;
 
-DHT dht(DHT22_PIN, DHTTYPE);
+//LED针脚
+const int LED_PIN = D3;
+
 WiFiUDP udp;
 
 void setup() {
   Serial.begin(9600);
-  pinMode(LED_BUILTIN, OUTPUT);
+  //pinMode(LED_BUILTIN, OUTPUT);
   delay(3000);  //等待3秒
   Serial.println("connecting to WIFI..." + SSID);
 
@@ -68,28 +70,31 @@ void setup() {
     Serial.println("udp communication initialize...");
   } while (!communication_init());
 
-  //dht22传感器初始化
-  dht.begin();
-
-  //mp503传感器初始化
-  pinMode(MP503_A_PIN,INPUT);
-  pinMode(MP503_B_PIN,INPUT);
+  //微波雷达初始化-使能
+  pinMode(RCWL_0516_CDS_PIN, OUTPUT);
+  digitalWrite(RCWL_0516_CDS_PIN,CDS_ON);
 }
 
 void loop() {
-  //上报.....
-  //每秒检查一下中心有没有下发配置指令
-  //间隔到期时开始发送数据或心跳
+  /*
+   *每300秒发送一次心跳 
+   *每1秒轮询一次两个传感器，如果都为1时，则发送告警事件
+   */
   for (int i = 1; i <= interval; i++) {
     delay(1000);
     execute_command();  //配置指令将及时生效
-
-    if (i == interval) {
-      if (onoff == 1) {
-        send_data();
-      } else {
-        send_heart();
+    
+    if (onoff == 1) {
+      int sr501_status = digitalRead(SR501_PIN);
+      int rcwl_0516_status = digitalRead(RCWL_0516_PIN);
+      
+      //如果两个传感器都触发，则发送入侵告警事件
+      if(sr501_status && rcwl_0516_status){
+        send_alarm();
       }
+    }
+    if (i == interval) {
+      send_heart();  //发送心跳
     }
   }
 }
@@ -99,13 +104,12 @@ void loop() {
 boolean communication_init() {
   udp.begin(localUDPPort);
 
-  String syn_packet = "deviceuuid|localip|devicetype|doit|onoff|period|\n";
+  String syn_packet = "deviceuuid|localip|devicetype|doit|onoff|\n";
   syn_packet.replace("deviceuuid", DEVICE_UUID);
   syn_packet.replace("localip", WiFi.localIP().toString());
   syn_packet.replace("devicetype", DEVICE_TYPE);
   syn_packet.replace("doit", "SYN");
   syn_packet.replace("onoff", "0");
-  syn_packet.replace("period", "300");
   //Serial.print(packet);
 
   //发送SYN包 -> 中心
@@ -126,7 +130,6 @@ boolean communication_init() {
       if (String(buf).indexOf("ACK") != -1) {
         //初始化onoff/interval设置
         onoff = split(String(buf), '|', 4).toInt();
-        interval = split(String(buf), '|', 5).toInt();
 
         Serial.println("UDP_SYN ... OK");
         return true;
@@ -138,34 +141,15 @@ boolean communication_init() {
   return false;
 }
 
-//发送数据包
-void send_data() {
-  String active_packet = "deviceuuid|localip|devicetype|doit|onoff|period|dht22_data|mp503_data|\n";
+//发送入侵告警事件
+void send_alarm() {
+  String active_packet = "deviceuuid|localip|devicetype|doit|onoff|alarm|\n";
   active_packet.replace("deviceuuid", DEVICE_UUID);
   active_packet.replace("localip", WiFi.localIP().toString());
   active_packet.replace("devicetype", DEVICE_TYPE);
   active_packet.replace("doit", "ACTIVE");
   active_packet.replace("onoff", String(onoff));
-  active_packet.replace("period", String(interval));
-
-//采集DHT22传感器数据
-  float h = dht.readHumidity();  //湿度
-  float t = dht.readTemperature();  //温度 （摄氏度）
-  float f = dht.readTemperature(true);  //温度 (华氏度)
-
-  if (isnan(h) || isnan(t) || isnan(f)) {
-    Serial.println("Failed to read from DHT sensor!");
-  }else{
-    float hi = dht.computeHeatIndex(f, h); //温度（体感温度）
-    String dht22_data = "(" + String(h) + "," + String(t) + "," + String(f) + "," + String(hi) + ")";
-    active_packet.replace("dht22_data", dht22_data);
-  }
-
-//采集MP503传感器数据   00:优  01:良  10:中  11:差
-  int A = digitalRead(MP503_A_PIN);
-  int B = digitalRead(MP503_B_PIN);
-
-  active_packet.replace("mp503_data", "(" + String(A) + "," + String(B) + ")");
+  active_packet.replace("alarm", "1");
 
   Serial.print(active_packet);
 
@@ -177,13 +161,12 @@ void send_data() {
 
 //发送心跳包
 void send_heart() {
-  String active_packet = "deviceuuid|localip|devicetype|doit|onoff|period|\n";
+  String active_packet = "deviceuuid|localip|devicetype|doit|onoff|\n";
   active_packet.replace("deviceuuid", DEVICE_UUID);
   active_packet.replace("localip", WiFi.localIP().toString());
   active_packet.replace("devicetype", DEVICE_TYPE);
   active_packet.replace("doit", "ACTIVE");
   active_packet.replace("onoff", String(onoff));
-  active_packet.replace("period", String(interval));
   Serial.print(active_packet);
 
   //发送ACTIVE心跳包 -> 中心
@@ -203,10 +186,14 @@ void execute_command() {
       //Serial.println(buf);
 
       if (String(buf).indexOf("SETUP") != -1) {
-        //重新设置onoff和interval
+        //重新设置onoff
         onoff = split(String(buf), '|', 4).toInt();
-        interval = split(String(buf), '|', 5).toInt();
 
+        if(onoff == 0){
+          digitalWrite(RCWL_0516_CDS_PIN,CDS_OFF); //如果onoff=0，则微博雷达失能
+        }else{
+          digitalWrite(RCWL_0516_CDS_PIN,CDS_ON);  //如果onoff=1，则微博雷达使能
+        }
         Serial.println("SETUP ... OK");
       }
     }
