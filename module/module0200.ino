@@ -25,7 +25,7 @@ const unsigned int localUDPPort = 13130;
 
 //其他配置
 int onoff = 0;  //0:停用（默认不发送传感器数据）  1：启用
-const unsigned int interval = 300;  //心跳间隔，300秒
+const unsigned int interval = 60;  //心跳间隔，60秒
 
 //SR501针脚
 const int SR501_PIN = D0;
