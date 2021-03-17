@@ -27,7 +27,7 @@ const unsigned int localUDPPort = 13130;
 
 //其他配置
 int onoff = 0;  //0:停用（默认不发送传感器数据）  1：启用
-unsigned int interval = 300;  //udp上报时间间隔，默认300秒  0 ~ 65535
+unsigned int interval = 300;  //udp上报时间间隔（同时也是心跳间隔），默认300秒  0 ~ 65535
 
 //DHT22传感器连接nodeMCU的针脚
 const int DHT22_PIN = D2;
@@ -85,7 +85,7 @@ void loop() {
     execute_command();  //配置指令将及时生效
 
     if (i == interval) {
-      if (onoff == 1) {
+      if (onoff == 1) { //间隔时间满足，开始发送数据或者发送心跳
         send_data();
       } else {
         send_heart();
@@ -95,7 +95,7 @@ void loop() {
 }
 
 
-//与远端中心进行两次握手，发送上线SYN数据包，然后接收中心ACK响应，如果没收到ACK响应，则持续发送SYN（每隔30秒）
+//与远端中心进行两次握手，发送上线SYN数据包，然后接收中心ACK响应，如果没收到ACK响应，则持续发送SYN（每隔32秒）
 boolean communication_init() {
   udp.begin(localUDPPort);
 
