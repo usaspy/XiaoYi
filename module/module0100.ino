@@ -160,13 +160,13 @@ void send_data() {
     String dht22_data = "(" + String(h) + "," + String(t) + "," + String(f) + "," + String(hi) + ")";
     active_packet.replace("dht22_data", dht22_data);
   }
-  
+
 //采集MP503传感器数据   00:优  01:良  10:中  11:差
   int A = digitalRead(MP503_A_PIN);
   int B = digitalRead(MP503_B_PIN);
-  
+
   active_packet.replace("mp503_data", "(" + String(A) + "," + String(B) + ")");
-  
+
   Serial.print(active_packet);
 
   //发送ACTIVE心跳包 -> 中心
