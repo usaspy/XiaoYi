@@ -8,7 +8,7 @@
 #include <ESP8266Ping.h>
 
 //设备码
-String DEVICE_UUID = "03ee7d50-22eb-4c7b-a9a7-4e1d167f845a";
+String DEVICE_UUID = "0b647ddf-6692-405f-92c7-547fbb16ecc1";
 String DEVICE_TYPE = "0300";
 
 //WIFI配置
@@ -30,11 +30,11 @@ const int SOCKET_1_PIN = D1;
 const int SOCKET_2_PIN = D2;
 const int SOCKET_3_PIN = D3;
 const int SOCKET_4_PIN = D4;
-
-String SOCKET_1_STATUS = "N/A";
-String SOCKET_2_STATUS = "N/A";
-String SOCKET_3_STATUS = "N/A";
-String SOCKET_4_STATUS = "N/A";
+//继电器各针脚的当前状态 1  通 0 断
+String SOCKET_1_STATUS = "poweron";
+String SOCKET_2_STATUS = "poweron";
+String SOCKET_3_STATUS = "poweron";
+String SOCKET_4_STATUS = "poweron";
 
 WiFiUDP udp;
 
@@ -67,39 +67,22 @@ void setup() {
     Serial.println("udp communication initialize...");
   } while (!communication_init());
 
-  //控制针脚初始化
-  pinMode(SOCKET_1_PIN, OUTPUT);
-  pinMode(SOCKET_2_PIN, OUTPUT);
-  pinMode(SOCKET_3_PIN, OUTPUT);
-  pinMode(SOCKET_4_PIN, OUTPUT);
-  digitalWrite(SOCKET_1_PIN,LOW); //初始设置为低电平，常开
-  digitalWrite(SOCKET_2_PIN,LOW);
-  digitalWrite(SOCKET_3_PIN,LOW);
-  digitalWrite(SOCKET_4_PIN,LOW);
+  //继电器针脚全部设置为常闭，通路状态
+  set_socket_status(SOCKET_1_PIN,SOCKET_1_STATUS);//初始设置为通(低电平？高电平？)
+  set_socket_status(SOCKET_2_PIN,SOCKET_2_STATUS);
+  set_socket_status(SOCKET_3_PIN,SOCKET_3_STATUS);
+  set_socket_status(SOCKET_4_PIN,SOCKET_4_STATUS);
 }
 
 void loop() {
   /*
    *每60秒发送一次心跳 
-   *每1秒轮询一次两个传感器，如果都为1时，则发送告警事件
+   *每1秒轮询一次看中心是否有指令下发
    */
   for (int i = 1; i <= interval; i++) {
-    delay(999);
-    execute_command();  //配置指令将及时生效
-    
-    if (onoff == 1) {
-      int sr501_status = digitalRead(SR501_PIN);
-      int rcwl_0516_status = digitalRead(RCWL_0516_PIN);
+    delay(997);
+    execute_command();  //执行指令或配置变更，将及时生效
 
-      
-      //如果两个传感器都触发，则发送入侵告警事件
-      if(sr501_status && rcwl_0516_status){
-        send_alarm();
-        digitalWrite(LED_PIN,HIGH);
-      }else{
-        digitalWrite(LED_PIN,LOW);
-      }
-    }
     if (i == interval) {
       send_heart();  //发送心跳
     }
@@ -148,24 +131,6 @@ boolean communication_init() {
   return false;
 }
 
-//发送入侵告警事件
-void send_alarm() {
-  String alarm_packet = "deviceuuid|localip|devicetype|doit|onoff|alarm|\n";
-  alarm_packet.replace("deviceuuid", DEVICE_UUID);
-  alarm_packet.replace("localip", WiFi.localIP().toString());
-  alarm_packet.replace("devicetype", DEVICE_TYPE);
-  alarm_packet.replace("doit", "ALARM");
-  alarm_packet.replace("onoff", String(onoff));
-  alarm_packet.replace("alarm", "1");
-
-  Serial.print(alarm_packet);
-
-  //发送告警事件包 -> 中心
-  udp.beginPacket(remoteHost.c_str(), remoteUDPPort);
-  udp.write(alarm_packet.c_str(), alarm_packet.length());
-  udp.endPacket();
-}
-
 //发送心跳包
 void send_heart() {
   String active_packet = "deviceuuid|localip|devicetype|doit|onoff|status|\n";
@@ -174,7 +139,7 @@ void send_heart() {
   active_packet.replace("devicetype", DEVICE_TYPE);
   active_packet.replace("doit", "ACTIVE");
   active_packet.replace("onoff", String(onoff));
-  active_packet.replace("status", String(SOCKET_1_STATUS) + "," + String(SOCKET_1_STATUS) + "," + String(SOCKET_1_STATUS) + "," + String(SOCKET_1_STATUS));
+  active_packet.replace("status", SOCKET_1_STATUS + "," + SOCKET_2_STATUS + "," + SOCKET_3_STATUS + "," + SOCKET_4_STATUS);
   Serial.print(active_packet);
 
   //发送ACTIVE心跳包 -> 中心
@@ -193,17 +158,43 @@ void execute_command() {
       udp.read(buf, packetSize);
       //Serial.println(buf);
 
-      if (String(buf).indexOf("SETUP") != -1) {
+      //配置报文
+      if(String(buf).indexOf("SETUP") != -1) {
         //重新设置onoff
         onoff = split(String(buf), '|', 4).toInt();
-
-        if(onoff == 0){
-          digitalWrite(RCWL_0516_CDS_PIN,CDS_DISABLED); //如果onoff=0，则微博雷达失能
-        }else{
-          digitalWrite(RCWL_0516_CDS_PIN,CDS_ENABLED);  //如果onoff=1，则微博雷达使能
-        }
+        //4个插头都设置为常通
+        SOCKET_1_STATUS = "poweron";
+        SOCKET_2_STATUS = "poweron";
+        SOCKET_3_STATUS = "poweron";
+        SOCKET_4_STATUS = "poweron";
+        set_socket_status(SOCKET_1_PIN,SOCKET_1_STATUS);
+        set_socket_status(SOCKET_2_PIN,SOCKET_2_STATUS);
+        set_socket_status(SOCKET_3_PIN,SOCKET_3_STATUS);
+        set_socket_status(SOCKET_4_PIN,SOCKET_4_STATUS);
+        
         Serial.println("SETUP ... OK");
       }
+      if(String(buf).indexOf("CMD") != -1 && onoff == 1) {
+        String STATUS_STR = split(String(buf), '|', 5);
+        
+        if(split(String(STATUS_STR), ',', 0) != ""){
+            SOCKET_1_STATUS = split(String(STATUS_STR), ',', 0);
+            set_socket_status(SOCKET_1_PIN,SOCKET_1_STATUS);
+        }
+        if(split(String(STATUS_STR), ',', 1) != ""){
+            SOCKET_2_STATUS = split(String(STATUS_STR), ',', 1);
+            set_socket_status(SOCKET_2_PIN,SOCKET_2_STATUS);
+        }
+        if(split(String(STATUS_STR), ',', 2) != ""){
+            SOCKET_3_STATUS = split(String(STATUS_STR), ',', 2);
+            set_socket_status(SOCKET_3_PIN,SOCKET_3_STATUS);
+        }
+        if(split(String(STATUS_STR), ',', 3) != ""){
+            SOCKET_4_STATUS = split(String(STATUS_STR), ',', 3);
+            set_socket_status(SOCKET_4_PIN,SOCKET_4_STATUS);
+        }
+        Serial.println("CMD PROCESS ... OK");
+      }  
     }
 }
 
@@ -221,4 +212,15 @@ String split(String data, char separator, int index) {
     }
   }
   return found > index ? data.substring(strIndex[0], strIndex[1]) : "";
+}
+
+//设置插座的状态
+void set_socket_status(int pin,String status){
+  pinMode(pin, OUTPUT);
+  if(status == "poweroff"){
+    digitalWrite(pin,LOW); 
+  }
+  if(status == "poweron"){
+    digitalWrite(pin,HIGH); 
+  }
 }
