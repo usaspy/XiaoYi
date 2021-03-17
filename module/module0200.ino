@@ -33,11 +33,11 @@ const int SR501_PIN = D0;
 //RCWL_0516微波雷达连接nodeMCU的针脚
 const int RCWL_0516_PIN = D1;
 const int RCWL_0516_CDS_PIN = D2;
-const int CDS_ON = HIGH;
-const int CDS_OFF = LOW;
+const int CDS_ENABLED = HIGH;
+const int CDS_DISABLED = LOW;
 
 //LED针脚
-const int LED_PIN = D3;
+const int LED_PIN = D4;
 
 WiFiUDP udp;
 
@@ -72,7 +72,9 @@ void setup() {
 
   //微波雷达初始化-使能
   pinMode(RCWL_0516_CDS_PIN, OUTPUT);
-  digitalWrite(RCWL_0516_CDS_PIN,CDS_ON);
+  digitalWrite(RCWL_0516_CDS_PIN,CDS_ENABLED);
+
+  pinMode(LED_PIN, OUTPUT);
 }
 
 void loop() {
@@ -81,16 +83,20 @@ void loop() {
    *每1秒轮询一次两个传感器，如果都为1时，则发送告警事件
    */
   for (int i = 1; i <= interval; i++) {
-    delay(1000);
+    delay(995);
     execute_command();  //配置指令将及时生效
 
     if (onoff == 1) {
       int sr501_status = digitalRead(SR501_PIN);
       int rcwl_0516_status = digitalRead(RCWL_0516_PIN);
 
+
       //如果两个传感器都触发，则发送入侵告警事件
       if(sr501_status && rcwl_0516_status){
         send_alarm();
+        digitalWrite(LED_PIN,HIGH);
+      }else{
+        digitalWrite(LED_PIN,LOW);
       }
     }
     if (i == interval) {
@@ -143,19 +149,19 @@ boolean communication_init() {
 
 //发送入侵告警事件
 void send_alarm() {
-  String active_packet = "deviceuuid|localip|devicetype|doit|onoff|alarm|\n";
-  active_packet.replace("deviceuuid", DEVICE_UUID);
-  active_packet.replace("localip", WiFi.localIP().toString());
-  active_packet.replace("devicetype", DEVICE_TYPE);
-  active_packet.replace("doit", "ACTIVE");
-  active_packet.replace("onoff", String(onoff));
-  active_packet.replace("alarm", "1");
+  String alarm_packet = "deviceuuid|localip|devicetype|doit|onoff|alarm|\n";
+  alarm_packet.replace("deviceuuid", DEVICE_UUID);
+  alarm_packet.replace("localip", WiFi.localIP().toString());
+  alarm_packet.replace("devicetype", DEVICE_TYPE);
+  alarm_packet.replace("doit", "ALARM");
+  alarm_packet.replace("onoff", String(onoff));
+  alarm_packet.replace("alarm", "1");
 
-  Serial.print(active_packet);
+  Serial.print(alarm_packet);
 
-  //发送ACTIVE心跳包 -> 中心
+  //发送告警事件包 -> 中心
   udp.beginPacket(remoteHost.c_str(), remoteUDPPort);
-  udp.write(active_packet.c_str(), active_packet.length());
+  udp.write(alarm_packet.c_str(), alarm_packet.length());
   udp.endPacket();
 }
 
@@ -190,9 +196,9 @@ void execute_command() {
         onoff = split(String(buf), '|', 4).toInt();
 
         if(onoff == 0){
-          digitalWrite(RCWL_0516_CDS_PIN,CDS_OFF); //如果onoff=0，则微博雷达失能
+          digitalWrite(RCWL_0516_CDS_PIN,CDS_DISABLED); //如果onoff=0，则微博雷达失能
         }else{
-          digitalWrite(RCWL_0516_CDS_PIN,CDS_ON);  //如果onoff=1，则微博雷达使能
+          digitalWrite(RCWL_0516_CDS_PIN,CDS_ENABLED);  //如果onoff=1，则微博雷达使能
         }
         Serial.println("SETUP ... OK");
       }
