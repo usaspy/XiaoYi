@@ -15,13 +15,13 @@ def working(_1553b):
 
         while True:
             data_bytes,addr = sock_server.recvfrom(1024)
-            Transaction(data_bytes,addr)
+            transaction(data_bytes,addr)
     except Exception as e:
         print("[UDPServer]发生通信异常...")
     finally:
         sock_server.close()
         print("[UDPServer]通信服务已关闭...")
 
-
-def Transaction(data_bytes,addr):
+#处理来自终端的数据包
+def transaction(data_bytes,addr):
     pass
