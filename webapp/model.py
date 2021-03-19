@@ -1,42 +1,54 @@
 from webapp.WebApp import db
 
-class DAY_DATAS(db.Model):
-    __tablename__='DAY_DATAS'
-    ID = db.Column(db.BIGINT,primary_key=True)
-    CODE = db.Column(db.String(8)) #代码
-    NAME = db.Column(db.String(255)) #股票名称
-    TOPEN = db.Column(db.DECIMAL) #开盘价
-    HIGH = db.Column(db.DECIMAL) #最高
-    LOW = db.Column(db.DECIMAL) #最低
-    TCLOSE = db.Column(db.DECIMAL) # 收盘价
-    LCLOSE = db.Column(db.DECIMAL) #前日收盘价
-    CHG = db.Column(db.DECIMAL)  #涨跌额
-    PCHG = db.Column(db.DECIMAL)  #涨跌幅
-    VOTURNOVER = db.Column(db.BIGINT)  #成交量(手)
-    VATURNOVER = db.Column(db.DECIMAL)  #成交金额
-    TURNOVER = db.Column(db.DECIMAL)  #换手率
-    TCAP = db.Column(db.DECIMAL)  #总市值
-    MCAP = db.Column(db.DECIMAL)  #流通市值
-    DAY = db.Column(db.Date)  #交易日
-    MA5 = db.Column(db.DECIMAL)  #MA5
-    MA10 = db.Column(db.DECIMAL)  #MA10
-    MA20 = db.Column(db.DECIMAL)  #MA20
-    CHANGEHAND = db.Column(db.DECIMAL)  #换手率
-    CREATE_TIME = db.Column(db.DateTime) #采集时间
+class DEVICES(db.Model):
+    __tablename__='devices'
+    device_id = db.Column(db.String(255),primary_key=True)
+    device_name = db.Column(db.String(255))
+    device_tpye = db.Column(db.String(255))
+    device_mac = db.Column(db.String(255))
+    device_ip = db.Column(db.String(255))
+    onoff = db.Column(db.BIGINT)
+    config = db.Column(db.String(255))
+    position = db.Column(db.BIGINT)
+    XYZT = db.Column(db.String(255))
+    comments = db.Column(db.String(255))
+    created_at = db.Column(db.DateTime)
+    last_active_at = db.Column(db.DateTime)
 
-class LISTS(db.Model):
-    __tablename__ = 'LISTS'
-    CODE = db.Column(db.String(8),primary_key=True)
-    NAME = db.Column(db.String(50))
+class POSITION(db.Model):
+    __tablename__ = 'position'
+    id = db.Column(db.BIGINT,primary_key=True)
+    NAME = db.Column(db.String(255))
 
-class TMP_FAILED(db.Model):
-    __tablename__ = 'TMP_FAILED'
-    F_CODE = db.Column(db.String(50),primary_key=True)
-    F_NAME = db.Column(db.String(50))
+class DEVICE_TYPE(db.Model):
+    __tablename__ = 'device_type'
+    type_code = db.Column(db.String(255),primary_key=True)
+    type_name = db.Column(db.String(255))
 
-class RELATION(db.Model):
-    __tablename__ = '__RELATION'
-    CODE = db.Column(db.String(50),primary_key=True)
-    FLAG = db.Column(db.String(50))
-    REMARK = db.Column(db.String(50))
-    FAVORITE_TIME = db.Column(db.DateTime) #收藏时间
+class DEVICE_0100(db.Model):
+    __tablename__='device_0100'
+    id = db.Column(db.BIGINT,primary_key=True)
+    device_id = db.Column(db.String(255))
+    humidity = db.Column(db.String(255))
+    temperature_f = db.Column(db.String(255))
+    temperature_c = db.Column(db.String(255))
+    heat_index = db.Column(db.String(255))
+    created_at = db.Column(db.DateTime)
+
+class DEVICE_0200(db.Model):
+    __tablename__='device_0200'
+    id = db.Column(db.BIGINT,primary_key=True)
+    device_id = db.Column(db.String(255))
+    alarm = db.Column(db.String(255))
+    created_at = db.Column(db.DateTime)
+
+
+class DEVICE_0300(db.Model):
+    __tablename__='device_0300'
+    id = db.Column(db.BIGINT,primary_key=True)
+    device_id = db.Column(db.String(255))
+    socket = db.Column(db.BIGINT)
+    name = db.Column(db.String(255))
+    status = db.Column(db.String(255))
+    comments = db.Column(db.String(255))
+    created_at = db.Column(db.DateTime)

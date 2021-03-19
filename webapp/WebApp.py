@@ -10,14 +10,11 @@ app.config['SQLALCHEMY_DATABASE_URI'] = "mysql://%s:%s@%s/%s" % (conf.get('MYSQL
 db = SQLAlchemy(app)
 
 def working(_1553b):
+    from webapp import model
     # [首页]
     @app.route('/', methods=['GET'])
     def index():
-        print("11111111111111111111111111111")
         return render_template('index.html')
-
-
-
 
     app.run(host=conf.get('WEB', 'host'), port=conf.get('WEB', 'port'), debug=False)
     print("webapp已就绪")
