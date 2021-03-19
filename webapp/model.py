@@ -29,10 +29,11 @@ class DEVICE_0100(db.Model):
     __tablename__='device_0100'
     id = db.Column(db.BIGINT,primary_key=True)
     device_id = db.Column(db.String(255))
-    humidity = db.Column(db.String(255))
-    temperature_f = db.Column(db.String(255))
-    temperature_c = db.Column(db.String(255))
-    heat_index = db.Column(db.String(255))
+    humidity = db.Column(db.DECIMAL(10, 2))
+    temperature_f = db.Column(db.DECIMAL(10, 2))
+    temperature_c = db.Column(db.DECIMAL(10, 2))
+    heat_index = db.Column(db.DECIMAL(10, 2))
+    air_quality = db.Column(db.String(255))
     created_at = db.Column(db.DateTime)
 
 class DEVICE_0200(db.Model):
