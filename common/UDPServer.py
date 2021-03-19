@@ -6,7 +6,7 @@ UDPServer, 通信服务
 服务端口：9527（UDP）
 '''
 import socket
-from common.udp_data_handle import *
+from common.udp_transaction import *
 
 def working(_1553b):
     print("[UDPServer]打开通信服务...")
@@ -34,7 +34,7 @@ def transaction(data_bytes,addr,_1553b):
         data = data.split('|')  #根据device_type交给不同的处理方法
 
         if data[2] == '0100':
-            handle_0100(data,addr,_1553b)
+            transaction_0100(data,addr,_1553b)
         elif data[2] == '0200':
             print(1)
         elif data[2] == '0300':
