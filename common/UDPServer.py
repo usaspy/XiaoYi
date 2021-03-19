@@ -25,16 +25,15 @@ def working(_1553b):
         print("[UDPServer]通信服务已关闭...")
 
 #处理来自终端的数据包
-def transaction(data_bytes,addr,_1553b):
+def transaction(data_bytes, addr, _1553b):
     try:
         data = data_bytes.decode("utf-8")
         if data.endswith("\n") != True:  #如果不是以'\n'结尾就丢弃，然后退出
             return
 
         data = data.split('|')  #根据device_type交给不同的处理方法
-
         if data[2] == '0100':
-            transaction_0100(data,addr,_1553b)
+            transaction_0100(data, addr, _1553b)
         elif data[2] == '0200':
             print(1)
         elif data[2] == '0300':
@@ -44,14 +43,3 @@ def transaction(data_bytes,addr,_1553b):
             return
     except Exception as e:
         print(e)
-
-
-if __name__ == '__main__':
-    data = "deviceuuid|localip|0100|doit|onoff|period|\n"
-    data = data.split('|')
-    if data[2] == '0100':
-        print(data)
-    if data[2] == '0200':
-        print(2)
-    if data[2] == '0300':
-        print(13)
