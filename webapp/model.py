@@ -4,7 +4,7 @@ class DEVICES(db.Model):
     __tablename__='devices'
     device_id = db.Column(db.String(255),primary_key=True)
     device_name = db.Column(db.String(255))
-    device_tpye = db.Column(db.String(255))
+    device_type = db.Column(db.String(255))
     device_mac = db.Column(db.String(255))
     device_ip = db.Column(db.String(255))
     onoff = db.Column(db.BIGINT)
