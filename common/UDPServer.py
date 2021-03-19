@@ -6,6 +6,7 @@ UDPServer, 通信服务
 服务端口：9527（UDP）
 '''
 import socket
+import threading
 from common.udp_transaction import *
 
 def working(_1553b):
@@ -16,7 +17,9 @@ def working(_1553b):
 
         while True:
             data_bytes,addr = sock_server.recvfrom(1024)
-            transaction(data_bytes,addr,_1553b)
+            t = threading.Thread(target=transaction, args=(data_bytes,addr,_1553b))
+            t.setDaemon(True)
+            t.start()
     except Exception as e:
         print(e)
         print("[UDPServer]发生通信异常...")
