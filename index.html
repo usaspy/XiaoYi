@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<!--[if IE 8]> <html lang="en" class="ie8"> <![endif]-->
+<!--[if !IE]><!-->
+<html lang="en">
+<!--<![endif]-->
+<head>
+	<meta charset="utf-8" />
+	<title></title>
+	<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport" />
+	<meta content="" name="description" />
+	<meta content="" name="author" />
+
+
+    <link href="{{ url_for('static',filename='assets/css/fonts.googleapis.css') }}"  rel="stylesheet" type="text/css" />
+    <link href="{{ url_for('static',filename='assets/plugins/jquery-ui/themes/base/minified/jquery-ui.min.css') }}"  rel="stylesheet" type="text/css" />
+    <link href="{{ url_for('static',filename='assets/plugins/bootstrap/css/bootstrap.min.css') }}"  rel="stylesheet" type="text/css" />
+    <link href="{{ url_for('static',filename='assets/plugins/font-awesome/css/font-awesome.min.css') }}"  rel="stylesheet" type="text/css" />
+    <link href="{{ url_for('static',filename='assets/css/animate.min.css') }}"  rel="stylesheet" type="text/css" />
+    <link href="{{ url_for('static',filename='assets/css/style.min.css') }}"  rel="stylesheet" type="text/css" />
+    <link href="{{ url_for('static',filename='assets/css/style-responsive.min.css') }}"  rel="stylesheet" type="text/css" />
+    <link href="{{ url_for('static',filename='assets/css/theme/default.css') }}"  id="theme" rel="stylesheet" type="text/css" />
+    <link href="{{ url_for('static',filename='assets/plugins/jquery-jvectormap/jquery-jvectormap-1.2.2.css') }}"  rel="stylesheet" type="text/css" />
+    <link href="{{ url_for('static',filename='assets/plugins/bootstrap-calendar/css/bootstrap_calendar.css') }}"  rel="stylesheet" type="text/css" />
+    <link href="{{ url_for('static',filename='assets/plugins/gritter/css/jquery.gritter.css') }}"  rel="stylesheet" type="text/css" />
+    <link href="{{ url_for('static',filename='assets/plugins/morris/morris.css') }}"  rel="stylesheet" type="text/css" />
+
+    <script src="{{ url_for('static',filename='assets/plugins/pace/pace.min.js') }}"  language="javascript"></script>
+
+</head>
+<body>
+	<!-- begin #page-loader -->
+	<div id="page-loader" class="fade in"><span class="spinner"></span></div>
+	<!-- end #page-loader -->
+
+	<!-- begin #page-container -->
+	<div id="page-container" class="fade page-sidebar-fixed page-header-fixed">
+		<!-- begin #header -->
+		<div id="header" class="header navbar navbar-default navbar-fixed-top">
+			<!-- begin container-fluid -->
+			<div class="container-fluid">
+				<!-- begin mobile sidebar expand / collapse button -->
+				<div class="navbar-header">
+					<a href="#" class="navbar-brand"><span class="navbar-logo"></span> 股市雷达</a>
+					<button type="button" class="navbar-toggle" data-click="sidebar-toggled">
+						<span class="icon-bar"></span>
+						<span class="icon-bar"></span>
+						<span class="icon-bar"></span>
+					</button>
+				</div>
+				<!-- end mobile sidebar expand / collapse button -->
+
+			</div>
+			<!-- end container-fluid -->
+		</div>
+		<!-- end #header -->
+
+		<!-- begin #sidebar -->
+		<div id="sidebar" class="sidebar">
+			<!-- begin sidebar scrollbar -->
+			<div data-scrollbar="true" data-height="100%">
+				<!-- begin sidebar user -->
+				<ul class="nav">
+					<li class="nav-profile">
+						<div class="image">
+							<a href="javascript:;"><img src="{{ url_for('static',filename='assets/img/user-13.jpg') }}" alt="" /></a>
+						</div>
+						<div class="info">
+							日数据已更新到<small>{{show_data_time() | first }}</small>
+						</div>
+					</li>
+				</ul>
+				<!-- end sidebar user -->
+				<!-- begin sidebar nav -->
+				<ul class="nav">
+					<li class="nav-header">功能菜单</li>
+					<li class="has-sub active">
+						<a href="#" onclick="loadpage('/sync')">
+						    <i class="fa fa-laptop"></i>
+						    <span>同步数据</span>
+					    </a>
+					</li>
+					<li class="has-sub">
+						<a href="javascript:;">
+						    <b class="caret pull-right"></b>
+							<i class="fa fa-inbox"></i>
+							<span>量价关系</span>
+						</a>
+						<ul class="sub-menu">
+						    <li><a href="#" onclick="loadpage('/1001')">放量拉升＆缩量下跌</a></li>
+						    <li><a href="#" onclick="loadpage('/1002')">近期突放巨量</a></li>
+						    <li><a href="#" onclick="loadpage('/1003')">缩量下跌后首次放量拉升</a></li>
+						    <!--<li><a href="#" onclick="loadpage('/1004')">换手率选股</a></li>-->
+						</ul>
+					</li>
+					<li class="has-sub">
+						<a href="javascript:;">
+						    <b class="caret pull-right"></b>
+							<i class="fa fa-inbox"></i>
+							<span>形态选股</span>
+						</a>
+						<ul class="sub-menu">
+						    <li><a href="#" onclick="loadpage('/2003')">锤子线</a></li>
+						    <li><a href="#" onclick="loadpage('/2004')">看涨吞没</a></li>
+						    <li><a href="#" onclick="loadpage('/2001')">启明星</a></li>
+						    <li><a href="#" onclick="loadpage('/2005')">缺口</a></li>
+						    <li><a href="#" onclick="loadpage('/2006')">上行三法</a></li>
+						</ul>
+					</li>
+					<li class="has-sub">
+						<a href="javascript:;">
+						    <b class="caret pull-right"></b>
+							<i class="fa fa-inbox"></i>
+							<span>趋势选股</span>
+						</a>
+						<ul class="sub-menu">
+						    <li><a href="#" onclick="loadpage('/3003')">一阳穿多线     </a></li>
+						    <li><a href="#" onclick="loadpage('/3004')">回落到均线附近     </a></li>
+						    <li><a href="#" onclick="loadpage('/4001')">处于历史低位     </a></li>
+						</ul>
+					</li>
+					<li class="has-sub">
+						<a href="#"  onclick="loadpage('/favorite_list')">
+							<span class="badge pull-right">!</span>
+							<i class="fa fa-inbox"></i>
+							<span>我的收藏夹</span>
+						</a>
+					</li>
+
+			        <!-- begin sidebar minify button -->
+					<li><a href="javascript:;" class="sidebar-minify-btn" data-click="sidebar-minify"><i class="fa fa-angle-double-left"></i></a></li>
+			        <!-- end sidebar minify button -->
+				</ul>
+				<!-- end sidebar nav -->
+			</div>
+			<!-- end sidebar scrollbar -->
+		</div>
+		<div class="sidebar-bg"></div>
+		<!-- end #sidebar -->
+
+		<!-- begin #content -->
+        <div id="content" class="content" >
+
+            <iframe id=iFrm align="center" width="100%" height="650" src="" frameborder="no" border="0" marginwidth="0" marginheight="0" scrolling="no"></iframe>
+
+        </div>
+		<!-- end #content -->
+
+		<!-- begin scroll to top btn -->
+		<a href="javascript:;" class="btn btn-icon btn-circle btn-success btn-scroll-to-top fade" data-click="scroll-top"><i class="fa fa-angle-up"></i></a>
+		<!-- end scroll to top btn -->
+	</div>
+	<!-- end page container -->
+
+
+    <script src="{{ url_for('static',filename='assets/plugins/jquery/jquery-1.9.1.min.js') }}"  language="javascript"></script>
+    <script src="{{ url_for('static',filename='assets/plugins/jquery/jquery-migrate-1.1.0.min.js') }}"  language="javascript"></script>
+    <script src="{{ url_for('static',filename='assets/plugins/jquery-ui/ui/minified/jquery-ui.min.js') }}"  language="javascript"></script>
+    <script src="{{ url_for('static',filename='assets/plugins/bootstrap/js/bootstrap.min.js') }}"  language="javascript"></script>
+    <script src="{{ url_for('static',filename='assets/crossbrowserjs/html5shiv.js') }}"  language="javascript"></script>
+    <script src="{{ url_for('static',filename='assets/crossbrowserjs/respond.min.js') }}"  language="javascript"></script>
+    <script src="{{ url_for('static',filename='assets/crossbrowserjs/excanvas.min.js') }}"  language="javascript"></script>
+    <script src="{{ url_for('static',filename='assets/plugins/slimscroll/jquery.slimscroll.min.js') }}"  language="javascript"></script>
+    <script src="{{ url_for('static',filename='assets/plugins/jquery-cookie/jquery.cookie.js') }}"  language="javascript"></script>
+    <script src="{{ url_for('static',filename='assets/plugins/morris/raphael.min.js') }}"  language="javascript"></script>
+    <script src="{{ url_for('static',filename='assets/plugins/morris/morris.js') }}"  language="javascript"></script>
+    <script src="{{ url_for('static',filename='assets/plugins/jquery-jvectormap/jquery-jvectormap-1.2.2.min.js') }}"  language="javascript"></script>
+    <script src="{{ url_for('static',filename='assets/plugins/jquery-jvectormap/jquery-jvectormap-world-merc-en.js') }}"  language="javascript"></script>
+    <script src="{{ url_for('static',filename='assets/plugins/bootstrap-calendar/js/bootstrap_calendar.min.js') }}"  language="javascript"></script>
+    <script src="{{ url_for('static',filename='assets/plugins/gritter/js/jquery.gritter.js') }}"  language="javascript"></script>
+    <script src="{{ url_for('static',filename='assets/js/dashboard-v2.min.js') }}"  language="javascript"></script>
+    <script src="{{ url_for('static',filename='assets/js/apps.min.js') }}"  language="javascript"></script>
+
+	<script>
+		$(document).ready(function() {
+			App.init();
+			DashboardV2.init();
+		});
+
+	</script>
+    <script>
+        function loadpage(url){
+          //$("#content").load(url);
+            document.getElementById("iFrm").src = url;
+        }
+    </script>
+</body>
+</html>
