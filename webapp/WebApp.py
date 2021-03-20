@@ -16,5 +16,5 @@ def working(_1553b):
     def index():
         return render_template('index.html')
 
+    print("[WebApp]小伊管理服务已就绪")
     app.run(host=conf.get('WEB', 'host'), port=conf.get('WEB', 'port'), debug=False)
-    print("webapp已就绪")
