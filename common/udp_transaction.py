@@ -18,12 +18,13 @@ def transaction_0100(data, addr, _1553b):
            db.session.commit()
 
         #回送ACK包
+        device = DEVICES.query.filter_by(device_id=data[0]).first()
         period = eval(device.config).get('period')
         data_resp = device.device_id + "|" + device.device_ip + "|" + device.device_type + "|" + "ACK" + "|" + str(device.onoff) + "|" + period + "|\n"
 
         # 将ack包送往_1553b   进程共享字典m.dict()有点奇怪，不能直接append....
         list_send = _1553b['UDP_SEND']
-        list_send.append([addr,data_resp.encode("utf-8")])
+        list_send.append([addr, data_resp])
         _1553b['UDP_SEND'] = list_send
 
     elif data[3] == 'ACTIVE':  #接收到心跳包文或正常数据报文
@@ -41,8 +42,9 @@ def transaction_0100(data, addr, _1553b):
 
             db.session.add(DEVICE_0100_new)
             db.session.commit()
+
         #刷新最新活动时间
-        DEVICES.query.filter(DEVICES.device_id == data[0]).update({"last_active_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")})
+        DEVICES.query.filter(DEVICES.device_id == data[0]).update({"device_ip": data[1], "last_active_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")})
         db.session.commit()
     else:
         return
