@@ -69,7 +69,7 @@ def transaction(data_bytes, addr, _1553b):
         if data[2] == '0100':
             transaction_0100(data, addr, _1553b)
         elif data[2] == '0200':
-            print(1)
+            transaction_0200(data, addr, _1553b)
         elif data[2] == '0300':
             print(1)
         else:
