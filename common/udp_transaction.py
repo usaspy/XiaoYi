@@ -47,5 +47,39 @@ def transaction_0100(data, addr, _1553b):
         DEVICES.query.filter(DEVICES.device_id == data[0]).update({"device_ip": data[1], "last_active_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")})
         db.session.commit()
     else:
-        return
+        print("[0100]未知动作:%s" % data[3])
 
+
+#处理消息[设备0200]
+#----"deviceuuid|localip|devicetype|doit|onoff|\n"----
+def transaction_0200(data, addr, _1553b):
+    if data[3] == 'SYN': #设备上线报文处理
+        device = DEVICES.query.filter_by(device_id=data[0]).first()
+        if device is None:  #如果设备不存在，即自动注册
+           device_new = DEVICES(device_id=data[0], device_type=data[2], device_ip=data[1], onoff=0, created_at=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+
+           db.session.add(device_new)
+           db.session.commit()
+
+        #回送ACK包
+        device = DEVICES.query.filter_by(device_id=data[0]).first()
+        data_resp = device.device_id + "|" + device.device_ip + "|" + device.device_type + "|" + "ACK" + "|" + str(device.onoff) + "|\n"
+
+        # 将ack包送往_1553b   进程共享字典m.dict()有点奇怪，不能直接append....
+        list_send = _1553b['UDP_SEND']
+        list_send.append([addr, data_resp])
+        _1553b['UDP_SEND'] = list_send
+
+    elif data[3] == 'ALARM':  #收到侵入告警
+        #告警事件入库
+        DEVICE_0200_new = DEVICE_0200(device_id=data[0], alarm=data[5], created_at=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+
+        db.session.add(DEVICE_0200_new)
+        db.session.commit()
+    elif data[3] == 'ACTIVE':  # 接收到心跳包文
+        # 刷新最新活动时间
+        DEVICES.query.filter(DEVICES.device_id == data[0]).update(
+            {"device_ip": data[1], "last_active_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")})
+        db.session.commit()
+    else:
+        print("[0200]未知动作:%s" % data[3])
