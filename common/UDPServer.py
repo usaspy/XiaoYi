@@ -54,7 +54,7 @@ def center2device(sock_server,_1553b):
             _1553b["UDP_SEND"] = []   # m.dict{}比较特殊,不能直接append或pop
             while True:
                 data = datas.pop(0)
-                sock_server.sendto(data[1], data[0])
+                sock_server.sendto(data[1].encode("utf-8"), data[0])
                 if len(datas) == 0: break
 
 
