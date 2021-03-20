@@ -10,6 +10,7 @@ if __name__ == "__main__":
     m = Manager()
     # 1553B数据总线 ，用于进程间通信的数据传递
     _1553b = m.dict()
+    _1553b['UDP_SEND'] = []  #初始化UDP发送队列
 
     try:
         p1 = Process(target=UDPServer.working, args=(_1553b,), name='p1')
