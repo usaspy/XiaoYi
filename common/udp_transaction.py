@@ -21,8 +21,10 @@ def transaction_0100(data, addr, _1553b):
         period = eval(device.config).get('period')
         data_resp = device.device_id + "|" + device.device_ip + "|" + device.device_type + "|" + "ACK" + "|" + str(device.onoff) + "|" + period + "|\n"
 
-        sock_c = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock_c.sendto(data_resp.encode("utf-8"), addr)
+        # 将ack包送往_1553b   进程共享字典m.dict()有点奇怪，不能直接append....
+        list_send = _1553b['UDP_SEND']
+        list_send.append([addr,data_resp.encode("utf-8")])
+        _1553b['UDP_SEND'] = list_send
 
     elif data[3] == 'ACTIVE':  #接收到心跳包文或正常数据报文
         if data[4] == "1":
