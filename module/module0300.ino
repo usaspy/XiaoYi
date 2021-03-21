@@ -30,11 +30,20 @@ const int SOCKET_1_PIN = D1;
 const int SOCKET_2_PIN = D2;
 const int SOCKET_3_PIN = D3;
 const int SOCKET_4_PIN = D4;
-//继电器各针脚的当前状态 1  通 0 断
-String SOCKET_1_STATUS = "poweron";
-String SOCKET_2_STATUS = "poweron";
-String SOCKET_3_STATUS = "poweron";
-String SOCKET_4_STATUS = "poweron";
+/*
+ * 继电器各针脚的默认状态 poweron 通 poweroff 断
+ * 继电器低电触发：
+ * 当给低电平时，继电器拨片打到常开端,负载电路断电 poweroff
+ * 当无控制信号或给高点平时，负载电路接通，poweron（负载电路接在继电器的常闭端，默认是接通的）
+ */
+
+const int POWER_ON = HIGH;
+const int POWER_OFF = LOW;
+ 
+int SOCKET_1_STATUS = POWER_ON;
+int SOCKET_2_STATUS = POWER_ON;
+int SOCKET_3_STATUS = POWER_ON;
+int SOCKET_4_STATUS = POWER_ON;
 
 WiFiUDP udp;
 
@@ -67,11 +76,11 @@ void setup() {
     Serial.println("udp communication initialize...");
   } while (!communication_init());
 
-  //继电器针脚全部设置为常闭，通路状态
-  set_socket_status(SOCKET_1_PIN,SOCKET_1_STATUS);//初始设置为通(低电平？高电平？)
-  set_socket_status(SOCKET_2_PIN,SOCKET_2_STATUS);
-  set_socket_status(SOCKET_3_PIN,SOCKET_3_STATUS);
-  set_socket_status(SOCKET_4_PIN,SOCKET_4_STATUS);
+  //继电器不控制状态or低电平信号时，拨片处于常闭端
+  set_socket_status(SOCKET_1_PIN,POWER_ON);//初始设置为通(低电平)
+  set_socket_status(SOCKET_2_PIN,POWER_ON);
+  set_socket_status(SOCKET_3_PIN,POWER_ON);
+  set_socket_status(SOCKET_4_PIN,POWER_ON);
 }
 
 void loop() {
@@ -139,7 +148,7 @@ void send_heart() {
   active_packet.replace("devicetype", DEVICE_TYPE);
   active_packet.replace("doit", "ACTIVE");
   active_packet.replace("onoff", String(onoff));
-  active_packet.replace("status", SOCKET_1_STATUS + "," + SOCKET_2_STATUS + "," + SOCKET_3_STATUS + "," + SOCKET_4_STATUS);
+  active_packet.replace("status", "(" + String(SOCKET_1_STATUS) + "," + String(SOCKET_2_STATUS) + "," + String(SOCKET_3_STATUS) + "," + String(SOCKET_4_STATUS) + ")");
   Serial.print(active_packet);
 
   //发送ACTIVE心跳包 -> 中心
@@ -158,42 +167,46 @@ void execute_command() {
       udp.read(buf, packetSize);
       //Serial.println(buf);
 
-      //配置报文
+      //配置报文SETUP
       if(String(buf).indexOf("SETUP") != -1) {
         //重新设置onoff
         onoff = split(String(buf), '|', 4).toInt();
-        //4个插头都设置为常通
-        SOCKET_1_STATUS = "poweron";
-        SOCKET_2_STATUS = "poweron";
-        SOCKET_3_STATUS = "poweron";
-        SOCKET_4_STATUS = "poweron";
-        set_socket_status(SOCKET_1_PIN,SOCKET_1_STATUS);
-        set_socket_status(SOCKET_2_PIN,SOCKET_2_STATUS);
-        set_socket_status(SOCKET_3_PIN,SOCKET_3_STATUS);
-        set_socket_status(SOCKET_4_PIN,SOCKET_4_STATUS);
+        //无论是打开还是关闭，4个插头都初始化为poweron
+        SOCKET_1_STATUS = POWER_ON;
+        SOCKET_2_STATUS = POWER_ON;
+        SOCKET_3_STATUS = POWER_ON;
+        SOCKET_4_STATUS = POWER_ON;
+        set_socket_status(SOCKET_1_PIN,POWER_ON);
+        set_socket_status(SOCKET_2_PIN,POWER_ON);
+        set_socket_status(SOCKET_3_PIN,POWER_ON);
+        set_socket_status(SOCKET_4_PIN,POWER_ON);
         
         Serial.println("SETUP ... OK");
-      }
-      if(String(buf).indexOf("CMD") != -1 && onoff == 1) {
-        String STATUS_STR = split(String(buf), '|', 5);
         
-        if(split(String(STATUS_STR), ',', 0) != ""){
-            SOCKET_1_STATUS = split(String(STATUS_STR), ',', 0);
+        return;
+      }
+      //命令报文CMD
+      if(String(buf).indexOf("CMD") != -1 && onoff == 1) {
+        String STATUS_ALL = split(String(buf), '|', 5);
+        
+        if(split(String(STATUS_ALL), ',', 0) != ""){
+            SOCKET_1_STATUS = split(String(STATUS_ALL), ',', 0).toInt();
             set_socket_status(SOCKET_1_PIN,SOCKET_1_STATUS);
         }
-        if(split(String(STATUS_STR), ',', 1) != ""){
-            SOCKET_2_STATUS = split(String(STATUS_STR), ',', 1);
+        if(split(String(STATUS_ALL), ',', 1) != ""){
+            SOCKET_2_STATUS = split(String(STATUS_ALL), ',', 1).toInt();
             set_socket_status(SOCKET_2_PIN,SOCKET_2_STATUS);
         }
-        if(split(String(STATUS_STR), ',', 2) != ""){
-            SOCKET_3_STATUS = split(String(STATUS_STR), ',', 2);
+        if(split(String(STATUS_ALL), ',', 2) != ""){
+            SOCKET_3_STATUS = split(String(STATUS_ALL), ',', 2).toInt();
             set_socket_status(SOCKET_3_PIN,SOCKET_3_STATUS);
         }
-        if(split(String(STATUS_STR), ',', 3) != ""){
-            SOCKET_4_STATUS = split(String(STATUS_STR), ',', 3);
+        if(split(String(STATUS_ALL), ',', 3) != ""){
+            SOCKET_4_STATUS = split(String(STATUS_ALL), ',', 3).toInt();
             set_socket_status(SOCKET_4_PIN,SOCKET_4_STATUS);
         }
         Serial.println("CMD PROCESS ... OK");
+        return;
       }  
     }
 }
@@ -215,12 +228,7 @@ String split(String data, char separator, int index) {
 }
 
 //设置插座的状态
-void set_socket_status(int pin,String status){
+void set_socket_status(int pin,int status){
   pinMode(pin, OUTPUT);
-  if(status == "poweroff"){
-    digitalWrite(pin,LOW); 
-  }
-  if(status == "poweron"){
-    digitalWrite(pin,HIGH); 
-  }
+  digitalWrite(pin,status); 
 }
