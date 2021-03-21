@@ -39,7 +39,7 @@ const int SOCKET_4_PIN = D4;
 
 const int POWER_ON = HIGH;
 const int POWER_OFF = LOW;
- 
+
 int SOCKET_1_STATUS = POWER_ON;
 int SOCKET_2_STATUS = POWER_ON;
 int SOCKET_3_STATUS = POWER_ON;
@@ -85,7 +85,7 @@ void setup() {
 
 void loop() {
   /*
-   *每60秒发送一次心跳 
+   *每60秒发送一次心跳
    *每1秒轮询一次看中心是否有指令下发
    */
   for (int i = 1; i <= interval; i++) {
@@ -180,15 +180,15 @@ void execute_command() {
         set_socket_status(SOCKET_2_PIN,POWER_ON);
         set_socket_status(SOCKET_3_PIN,POWER_ON);
         set_socket_status(SOCKET_4_PIN,POWER_ON);
-        
+
         Serial.println("SETUP ... OK");
-        
+
         return;
       }
       //命令报文CMD
       if(String(buf).indexOf("CMD") != -1 && onoff == 1) {
         String STATUS_ALL = split(String(buf), '|', 5);
-        
+
         if(split(String(STATUS_ALL), ',', 0) != ""){
             SOCKET_1_STATUS = split(String(STATUS_ALL), ',', 0).toInt();
             set_socket_status(SOCKET_1_PIN,SOCKET_1_STATUS);
@@ -207,7 +207,7 @@ void execute_command() {
         }
         Serial.println("CMD PROCESS ... OK");
         return;
-      }  
+      }
     }
 }
 
@@ -230,5 +230,5 @@ String split(String data, char separator, int index) {
 //设置插座的状态
 void set_socket_status(int pin,int status){
   pinMode(pin, OUTPUT);
-  digitalWrite(pin,status); 
+  digitalWrite(pin,status);
 }
