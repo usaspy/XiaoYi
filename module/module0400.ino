@@ -129,8 +129,7 @@ void setup() {
 
   delay(2000);
   Serial.println("Into Deep-Sleep mode now...");
-  delay(2000);
-  Serial.println("...zzZZ");
+  Serial.println("...zZZZ");
   esp_deep_sleep_start();
 }
 
