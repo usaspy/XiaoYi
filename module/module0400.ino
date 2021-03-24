@@ -16,6 +16,9 @@
 #include "soc/soc.h"           // Disable brownour problems
 #include "soc/rtc_cntl_reg.h"  // Disable brownour problems
 #include "driver/rtc_io.h"
+#include <WiFi.h>
+#include <WiFiUdp.h>
+#include <stdio.h>
 
 // Pin definition for CAMERA_MODEL_AI_THINKER
 #define PWDN_GPIO_NUM     32
@@ -36,13 +39,132 @@
 #define HREF_GPIO_NUM     23
 #define PCLK_GPIO_NUM     22
 
+//设备码
+char* DEVICE_UUID = "98176c7a-c8f4-5656-bfac-b9813fdec4ef";
+char* DEVICE_TYPE = "0400";
+
+//WIFI配置
+const char* SSID = "HUAWEI";
+const char* PASSWORD = "12345678";
+
+//中心UDP服务器配置
+const String remoteHost = "LULU";
+const unsigned int remoteUDPPort = 9527;
+//本地UDP监听端口
+const unsigned int localUDPPort = 13130;
+
+//其他配置
+int onoff = 1;  //1：启用(默认值，不使用该配置)
+WiFiUDP udp;
+WiFiClient client;
+
+//中心服务器文件传输配置
+const unsigned int remoteTCPPort = 9528;
+
 void setup() {
   WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0); //disable brownout detector
 
-  Serial.begin(115200);
+  Serial.begin(9600);
   //Serial.setDebugOutput(true);
   //Serial.println();
+  Serial.printf("connecting to WIFI...%s", SSID);
 
+  WiFi.mode(WIFI_STA);  //设置WIFI模式为STA
+  WiFi.begin(SSID, PASSWORD);
+
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(1000);
+    Serial.println("connecting...");
+  }
+
+  Serial.println("WiFi connected!");
+  Serial.printf("Device's Local IP -> %s", WiFi.localIP().toString());
+
+  //拍照
+  take_pictures();
+
+  //发送照片
+  //send_pictures();
+
+  delay(2000);
+  Serial.println("Into Deep-Sleep mode now...");
+  Serial.println("...zZZZ");
+  esp_deep_sleep_start();
+}
+
+void loop() {
+
+}
+
+boolean send_pictures(){
+   client.connect(remoteHost.c_str(),remoteTCPPort);
+   while (!client.connected()){
+      delay(100);
+      Serial.println("Client connecting...");
+   }
+
+   Serial.println("Client connected!");
+
+  //Serial.println("Starting SD Card");
+  if(!SD_MMC.begin()){
+    Serial.println("SD Card Mount Failed");
+    return false;
+  }
+
+  uint8_t cardType = SD_MMC.cardType();
+  if(cardType == CARD_NONE){
+    Serial.println("No SD Card attached");
+    return false;
+  }
+
+   for(int i=1;i<=3;i++){
+      String path = "/picture" + String(i) +".jpg";
+      fs::FS &fs = SD_MMC;
+      Serial.printf("Picture file name: %s\n", path.c_str());
+
+      File file = fs.open(path.c_str(), FILE_READ);
+      if(!file){
+        Serial.println("Failed to open file in read mode");
+      }
+      else {
+          client.write(file);
+      }
+      file.close();
+   }
+
+   client.print(random(1,20));
+   delay(2000);
+   Serial.println("send ok");
+   client.stop();
+
+   return true;
+}
+
+//向远端中心发送上线SYN数据包
+void communication_init() {
+  udp.begin(localUDPPort);
+
+  String local_IP = WiFi.localIP().toString();
+  int str_len = local_IP.length() + 1;
+  char ip_array[str_len];
+  local_IP.toCharArray(ip_array,str_len);
+
+  char* syn_packet = "deviceuuid|localip|devicetype|doit|onoff|period|\n";
+  str_replace(syn_packet,strlen("deviceuuid"),DEVICE_UUID);
+  str_replace(syn_packet,strlen("localip"),ip_array);
+  str_replace(syn_packet,strlen("devicetype"),DEVICE_TYPE);
+  str_replace(syn_packet,strlen("doit"),"SYN");
+  str_replace(syn_packet,strlen("onoff"),"1");
+  str_replace(syn_packet,strlen("period"),"0");
+  Serial.print(syn_packet);
+
+  //发送SYN包 -> 中心
+  udp.beginPacket(remoteHost.c_str(), remoteUDPPort);
+  udp.printf(syn_packet);
+  udp.endPacket();
+}
+
+boolean take_pictures(){
   camera_config_t config;
   config.ledc_channel = LEDC_CHANNEL_0;
   config.ledc_timer = LEDC_TIMER_0;
@@ -79,21 +201,28 @@ void setup() {
   esp_err_t err = esp_camera_init(&config);
   if (err != ESP_OK) {
     Serial.printf("Camera init failed with error 0x%x", err);
-    return;
+    return false;
   }
 
   //Serial.println("Starting SD Card");
   if(!SD_MMC.begin()){
     Serial.println("SD Card Mount Failed");
-    return;
+    return false;
   }
 
   uint8_t cardType = SD_MMC.cardType();
   if(cardType == CARD_NONE){
     Serial.println("No SD Card attached");
-    return;
+    return false;
   }
 //连续拍摄三张照片
+   client.connect(remoteHost.c_str(),remoteTCPPort);
+   while (!client.connected()){
+      delay(100);
+      Serial.println("Client connecting...");
+   }
+   Serial.println("Client connected!");
+
   for(int i = 1; i <= 3; i++){
       delay(1000);
       camera_fb_t * fb = NULL;
@@ -101,7 +230,7 @@ void setup() {
       fb = esp_camera_fb_get();
       if(!fb) {
         Serial.println("Camera capture failed");
-        return;
+        return false;
       }
 
       // Path where new picture will be saved in SD Card
@@ -116,6 +245,7 @@ void setup() {
       }
       else {
         file.write(fb->buf, fb->len); // payload (image), payload length
+        client.write(fb->buf, fb->len);
         Serial.printf("Saved file to path: %s\n", path.c_str());
       }
       file.close();
@@ -127,12 +257,37 @@ void setup() {
   digitalWrite(4, LOW);
   rtc_gpio_hold_en(GPIO_NUM_4);
 
-  delay(2000);
-  Serial.println("Into Deep-Sleep mode now...");
-  Serial.println("...zZZZ");
-  esp_deep_sleep_start();
+  return true;
 }
 
-void loop() {
-
+void str_replace(char * cp, int n, char * str)
+{
+  int lenofstr;
+  int i;
+  char * tmp;
+  lenofstr = strlen(str);
+  //str3比str2短，往前移动
+  if(lenofstr < n)
+  {
+    tmp = cp+n;
+    while(*tmp)
+    {
+      *(tmp-(n-lenofstr)) = *tmp; //n-lenofstr是移动的距离
+      tmp++;
+    }
+    *(tmp-(n-lenofstr)) = *tmp; //move '\0'
+  }
+  else
+          //str3比str2长，往后移动
+    if(lenofstr > n)
+    {
+      tmp = cp;
+      while(*tmp) tmp++;
+      while(tmp>=cp+n)
+      {
+        *(tmp+(lenofstr-n)) = *tmp;
+        tmp--;
+      }
+    }
+  strncpy(cp,str,lenofstr);
 }
