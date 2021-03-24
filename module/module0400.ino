@@ -18,7 +18,6 @@
 #include "driver/rtc_io.h"
 #include <WiFi.h>
 #include <stdio.h>
-#include <cstdio>
 
 // Pin definition for CAMERA_MODEL_AI_THINKER
 #define PWDN_GPIO_NUM     32
@@ -57,33 +56,20 @@ void setup() {
   WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0); //disable brownout detector
 
   Serial.begin(9600);
-  //Serial.setDebugOutput(true);
-  //Serial.println();
   Serial.printf("connecting to WIFI...%s", SSID);
-
+  //连接WIFI
   WiFi.mode(WIFI_STA);  //设置WIFI模式为STA
   WiFi.begin(SSID, PASSWORD);
 
-  //连接WIFI
   while (WiFi.status() != WL_CONNECTED) {
     delay(1000);
     Serial.println("connecting...");
   }
   Serial.println("WiFi connected!");
 
-  //连接TCP-Server
-  Serial.println("1243");
-  Serial.println("456");
-  while (!client.connected()){
-    client.connect(remoteHost,remoteTCPPort);
-    Serial.println("connecting...");
-    delay(1000);
-  }
-  Serial.println("TCP-Server connected!");
-
-  //向TCP-Server发送心跳包
+  //建立TCP连接
   communication_init();
-  //拍照
+  //拍照并上传
   take_pictures();
 
   delay(2000);
@@ -96,8 +82,16 @@ void loop() {
 
 }
 
-//TCP向远端中心发送上线ACTIVE数据包,无需等待ACK报文
+//向远端中心发送上线SYN数据包
 void communication_init() {
+  //连接TCP-Server
+  client.connect(remoteHost,remoteTCPPort);
+  while (!client.connected()){
+    delay(1000);
+    Serial.println("connecting...");
+  }
+  Serial.println("TCP-Server connected!");
+
   String local_IP = WiFi.localIP().toString();
   int str_len = local_IP.length() + 1;
   char ip_array[str_len];
@@ -110,7 +104,6 @@ void communication_init() {
   client.write(syn_packet,strlen(syn_packet));
 }
 
-//
 boolean take_pictures(){
   camera_config_t config;
   config.ledc_channel = LEDC_CHANNEL_0;
@@ -151,19 +144,17 @@ boolean take_pictures(){
     return false;
   }
 
-  //连续拍摄三张照片
+//连续拍摄三张照片
   for(int i = 1; i <= 3; i++){
-      delay(1000);
       camera_fb_t * fb = NULL;
-
      // Take Picture with Camera
       fb = esp_camera_fb_get();
       if(!fb) {
         Serial.println("Camera capture failed");
         return false;
       }else{
-        //client.write(fb->buf, fb->len); // payload (image), payload length
-        Serial.printf("Send file: %s\n", i);
+        client.write(fb->buf, fb->len);
+        Serial.printf("send file: %d\n", i);
       }
       esp_camera_fb_return(fb);
   }
