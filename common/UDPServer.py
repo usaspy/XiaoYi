@@ -72,6 +72,8 @@ def transaction(data_bytes, addr, _1553b):
             transaction_0200(data, addr, _1553b)
         elif data[2] == '0300':
             transaction_0300(data, addr, _1553b)
+        elif data[2] == '0400':
+            transaction_0400(data, addr, _1553b)
         else:
             print("设备类型不对") #设备类型不对，丢弃
             return

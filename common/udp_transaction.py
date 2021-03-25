@@ -128,3 +128,33 @@ def transaction_0300(data, addr, _1553b):
         db.session.commit()
     else:
         print("[0300]未知动作:%s" % data[3])
+
+
+#处理消息[设备0400]
+#----"deviceuuid|localip|devicetype|doit|onoff|\n"----
+def transaction_0400(data, addr, _1553b):
+    if data[3] == 'SYN': #设备上线报文处理
+        device = DEVICES.query.filter_by(device_id=data[0]).first()
+        if device is None:  #如果设备不存在，即自动注册
+           config = {'photsNum': data[5]}
+           device_new = DEVICES(device_id=data[0], device_type=data[2], device_ip=data[1], onoff=1, config=str(config), created_at=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+           db.session.add(device_new)
+           db.session.commit()
+        else:
+            # 刷新最新活动时间
+            DEVICES.query.filter(DEVICES.device_id == data[0]).update(
+                {"device_ip": data[1], "last_active_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")})
+            db.session.commit()
+        #回送ACK包
+        device = DEVICES.query.filter_by(device_id=data[0]).first()
+        photosNum = eval(device.config).get('photosNum')
+
+        data_resp = data[0] + "|" + data[1] + "|" + data[2] + "|" + "ACK" + "|" + str(1) + "|" + str(photosNum) + "|\n"
+
+        # 将ack包送往_1553b   进程共享字典m.dict()有点奇怪，不能直接append....
+        list_send = _1553b['UDP_SEND']
+
+        list_send.append([addr, data_resp])
+        _1553b['UDP_SEND'] = list_send
+    else:
+        print("[0400]未知动作:%s" % data[3])

@@ -18,6 +18,7 @@
 #include "driver/rtc_io.h"
 #include <WiFi.h>
 #include <stdio.h>
+#include <WiFiUDP.h>
 
 // Pin definition for CAMERA_MODEL_AI_THINKER
 #define PWDN_GPIO_NUM     32
@@ -46,11 +47,19 @@ char* DEVICE_TYPE = "0400";
 const char* SSID = "HUAWEI";
 const char* PASSWORD = "12345678";
 
-//中心UDP服务器配置
+//中心TCP服务器配置
 const char* remoteHost = "LULU";
+const unsigned int remoteUDPPort = 9527;
 const unsigned int remoteTCPPort = 9528;
+//本地UDP监听端口
+const unsigned int localUDPPort = 13130;
 
+WiFiUDP udp;
 WiFiClient client;
+int photos_Num = 3;
+
+const char* PHOTO_FLAG="===PHOTO===";
+const char* OVER_FLAG="===OVER===";
 
 void setup() {
   WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0); //disable brownout detector
@@ -67,14 +76,16 @@ void setup() {
   }
   Serial.println("WiFi connected!");
 
-  //建立TCP连接
-  communication_init();
-  //拍照并上传
-  take_pictures();
+  //建立UDP连接，发送SYN报文
+  do {
+    Serial.println("udp communication initialize...");
+  } while (!communication_init());
+
+  //建立TCP连接拍照并上传
+  take_photos();
 
   delay(2000);
-  Serial.println("Into Deep-Sleep mode now...");
-  Serial.println("...zZZZ");
+  Serial.println("Into Deep-Sleep mode now...zZZZ");
   esp_deep_sleep_start();
 }
 
@@ -83,7 +94,48 @@ void loop() {
 }
 
 //向远端中心发送上线SYN数据包
-void communication_init() {
+boolean communication_init() {
+  udp.begin(localUDPPort);
+
+  String local_IP = WiFi.localIP().toString();
+  int str_len = local_IP.length() + 1;
+  char ip_array[str_len];
+  local_IP.toCharArray(ip_array,str_len);
+
+  std::string const& cc = std::string(DEVICE_UUID) + "|" + std::string(ip_array) + "|" + std::string(DEVICE_TYPE) + "|SYN|1|3|\n";
+  char const *syn_packet = cc.c_str();
+  //Serial.println(syn_packet);
+
+  //发送SYN包 -> 中心
+  udp.beginPacket(remoteHost, remoteUDPPort);
+  udp.printf(syn_packet);
+  udp.endPacket();
+
+    //循环等待32秒 等待接收ACK响应 <- 中心
+  for (int i = 0; i < 32; i++) {
+    delay(500);
+    int packetSize = udp.parsePacket();
+
+    if (packetSize) {
+      char buf[packetSize];
+      udp.read(buf, packetSize);
+      //Serial.println(buf);
+
+      if (String(buf).indexOf("ACK") != -1) {
+        //初始化onoff/interval设置
+        photos_Num = split(String(buf), '|', 5).toInt();
+        Serial.println("UDP_SYN ... OK");
+        return true;
+      }
+    }
+  }
+  udp.stop();
+  Serial.println("UDP_SYN ... TIMEOUT");
+  return false;
+}
+
+//抓拍照片并上传
+boolean take_photos(){
   //连接TCP-Server
   client.connect(remoteHost,remoteTCPPort);
   while (!client.connected()){
@@ -92,19 +144,6 @@ void communication_init() {
   }
   Serial.println("TCP-Server connected!");
 
-  String local_IP = WiFi.localIP().toString();
-  int str_len = local_IP.length() + 1;
-  char ip_array[str_len];
-  local_IP.toCharArray(ip_array,str_len);
-
-  std::string const& cc = std::string(DEVICE_UUID) + "|" + std::string(ip_array) + "|" + std::string(DEVICE_TYPE) + "|ACTIVE|1|\n";
-  char const *syn_packet = cc.c_str();
-  //Serial.println(syn_packet);
-  //发送ACTIVE包 -> 中心
-  client.write(syn_packet,strlen(syn_packet));
-}
-
-boolean take_pictures(){
   camera_config_t config;
   config.ledc_channel = LEDC_CHANNEL_0;
   config.ledc_timer = LEDC_TIMER_0;
@@ -143,9 +182,9 @@ boolean take_pictures(){
     Serial.printf("Camera init failed with error 0x%x", err);
     return false;
   }
-
+  Serial.printf("count:%d",photos_Num);
 //连续拍摄三张照片
-  for(int i = 1; i <= 3; i++){
+  for(int i = 1; i <= photos_Num; i++){
       camera_fb_t * fb = NULL;
      // Take Picture with Camera
       fb = esp_camera_fb_get();
@@ -154,9 +193,16 @@ boolean take_pictures(){
         return false;
       }else{
         client.write(fb->buf, fb->len);
+        client.write(PHOTO_FLAG, strlen(PHOTO_FLAG));  //第N张照片发送完毕标记
+        if(i == photos_Num){
+            client.write(OVER_FLAG, strlen(OVER_FLAG)); //所有照片发送完毕标记
+        }
         Serial.printf("send file: %d\n", i);
       }
       esp_camera_fb_return(fb);
+  }
+  if (client.available()){
+    client.stop();
   }
 
   // Turns off the ESP32-CAM white on-board LED (flash) connected to GPIO 4 关闭板载闪光灯
@@ -165,4 +211,21 @@ boolean take_pictures(){
   rtc_gpio_hold_en(GPIO_NUM_4);
 
   return true;
+}
+
+
+//自定义函数  截取字串
+String split(String data, char separator, int index) {
+  int found = 0;
+  int strIndex[] = {0, -1};
+  int maxIndex = data.length() - 1;
+
+  for (int i = 0; i <= maxIndex && found <= index; i++) {
+    if (data.charAt(i) == separator || i == maxIndex) {
+      found++;
+      strIndex[0] = strIndex[1] + 1;
+      strIndex[1] = (i == maxIndex) ? i + 1 : i;
+    }
+  }
+  return found > index ? data.substring(strIndex[0], strIndex[1]) : "";
 }
