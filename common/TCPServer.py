@@ -9,6 +9,7 @@ import socket
 import uuid
 import threading
 import datetime
+from webapp import vars
 
 def working(_1553b):
     print("[TCPServer]打开文件传输服务...")
@@ -36,22 +37,12 @@ def transaction(client_socket, client_addr):
     while True:
         recv_data = client_socket.recv(8192)
         stream = stream + recv_data
-        if stream[len(stream)-10:] == b"===OVER===": #接收完成python datetime 精确到毫秒
+        if stream[len(stream)-10:] == vars.STREAM_OVER_FLAG: #如果最后10个字节是流结束标记，退出接收循环
             break
     if stream:
-        photos = stream.split(b"===PHOTO===")
+        photos = stream.split(vars.PHOTO_FLAG)  #共X张照片
         for photo in photos[0:len(photos)-1]:
-            picpath = 'C:/' + datetime.datetime.now().strftime("%Y%m%d%H%M%S%f") + ".jpg"
+            picpath = vars.PHOTOS_PATH + "/" + datetime.datetime.now().strftime("%Y%m%d%H%M%S%f") + ".jpg"
             file = open(picpath, 'wb')
             file.write(photo)
             file.close()
-
-
-#接收图片
-def recv_picture(socket, path):
-    # wb以二进制方式写文件,因为我们的tcp接收数据为二进制byte的类型
-    picpath = 'C:/' + str(uuid.uuid1()) + ".jpg"
-    file = open(path, 'wb')
-    while True:
-        recv_data = socket.recv(512)
-        print(recv_data)
